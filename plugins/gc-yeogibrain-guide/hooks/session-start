@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Detect platform for output format
+if [[ -n "${CURSOR_PLUGIN_ROOT:-}" ]]; then
+  PLATFORM="cursor"
+elif [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+  PLATFORM="claude"
+elif [[ -n "${COPILOT_CLI:-}" ]]; then
+  PLATFORM="copilot"
+else
+  PLATFORM="claude"
+fi
+
+# Safe JSON string escaping
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+nudge="yeogibrain MCP is available for searching internal product knowledge. Key rules: 인터뷰보이스 for user quotes (primary source), prd for specs and benchmarks, research for analyzed insights (secondary source). Always use document titles, never IDs."
+escaped_nudge=$(escape_for_json "$nudge")
+
+case "$PLATFORM" in
+  cursor)
+    printf '{"result": "%s"}\n' "$escaped_nudge"
+    ;;
+  copilot)
+    printf '{"message": "%s"}\n' "$escaped_nudge"
+    ;;
+  claude|*)
+    printf '{"result": "%s"}\n' "$escaped_nudge"
+    ;;
+esac
