@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Detect platform for output format
+if [[ -n "${CURSOR_PLUGIN_ROOT:-}" ]]; then
+  PLATFORM="cursor"
+elif [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+  PLATFORM="claude"
+elif [[ -n "${COPILOT_CLI:-}" ]]; then
+  PLATFORM="copilot"
+else
+  PLATFORM="claude"
+fi
+
+# Safe JSON string escaping
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+output_ok() {
+  printf '{"result": "OK"}\n'
+  exit 0
+}
+
+# Check git availability and that we are inside a repo
+if ! command -v git &>/dev/null; then
+  output_ok
+fi
+
+if ! git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+  output_ok
+fi
+
+# Collect changed file paths (unstaged + staged)
+changed_files=$(
+  { git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null; } \
+  | sort -u
+)
+
+if [[ -z "$changed_files" ]]; then
+  output_ok
+fi
+
+# Scan for compliance-sensitive path patterns
+PATTERNS="consent|privacy|terms|policy|admin|auth|payment|settlement|passport|personal|pii|compliance|traveler|partner|guide|booking|cancellation|voucher"
+
+matched_patterns=""
+while IFS= read -r filepath; do
+  # Extract filename and lowercased path for matching
+  lower_path="${filepath,,}"
+  # Find which pattern(s) match
+  IFS='|' read -ra pattern_list <<< "$PATTERNS"
+  for pat in "${pattern_list[@]}"; do
+    if [[ "$lower_path" == *"$pat"* ]]; then
+      # Accumulate unique matches
+      if [[ "$matched_patterns" != *"$pat"* ]]; then
+        if [[ -n "$matched_patterns" ]]; then
+          matched_patterns="$matched_patterns, $pat"
+        else
+          matched_patterns="$pat"
+        fi
+      fi
+    fi
+  done
+done <<< "$changed_files"
+
+if [[ -z "$matched_patterns" ]]; then
+  output_ok
+fi
+
+nudge="Changed files touch compliance-sensitive areas (${matched_patterns}). Consider running \`/audit-compliance code\` before committing."
+escaped_nudge=$(escape_for_json "$nudge")
+
+case "$PLATFORM" in
+  cursor)
+    printf '{"result": "%s"}\n' "$escaped_nudge"
+    ;;
+  copilot)
+    printf '{"message": "%s"}\n' "$escaped_nudge"
+    ;;
+  claude|*)
+    printf '{"result": "%s"}\n' "$escaped_nudge"
+    ;;
+esac
