@@ -1,0 +1,28 @@
+{
+  "name": "gc-claude-plugins",
+  "description": "GC Company shared Claude Code plugins for compliance, migrations, and internal tools",
+  "owner": {
+    "name": "GC Company",
+    "email": "dev@gc-company.com"
+  },
+  "plugins": [
+    {
+      "name": "gc-korea-compliance",
+      "source": "./plugins/gc-korea-compliance",
+      "description": "Korea OTA security, privacy, and regulatory compliance review for any GC Company product",
+      "category": "compliance"
+    },
+    {
+      "name": "gc-safe-migration",
+      "source": "./plugins/gc-safe-migration",
+      "description": "Schema migration safety patterns for Spring Boot + MyBatis + MySQL services",
+      "category": "development"
+    },
+    {
+      "name": "gc-yeogibrain-guide",
+      "source": "./plugins/gc-yeogibrain-guide",
+      "description": "Guidance for effectively using the yeogibrain MCP server across GC Company projects",
+      "category": "productivity"
+    }
+  ]
+}
